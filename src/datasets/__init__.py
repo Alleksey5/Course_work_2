@@ -1,3 +1,3 @@
-from src.datasets.common_voice import CommonVoiceDataset
-from src.datasets.custom_dir_audio_dataset import CustomDirAudioDataset
-from src.datasets.librispeech_dataset import LibrispeechDataset
+from src.datasets.mel_dataset import MelDataset
+from src.datasets.vctk_dataset import VCTKDataset
+from src.datasets.voicebank_dataset import VoicebankDataset
