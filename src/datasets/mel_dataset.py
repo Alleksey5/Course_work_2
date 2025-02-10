@@ -1,22 +1,22 @@
-import os
+import logging
 import random
+
+import numpy as np
 import torch
-import librosa
-from torch.utils.data import Dataset
+import torchaudio
+from src.datasets.base_dataset import BaseDataset
 
-
-class MelDataset(BaseDataset):
+class MelDataset(torch.utils.data.Dataset):
     def __init__(self, training_files, segment_size, n_fft, num_mels,
-                 hop_size, win_size, sampling_rate, fmin, fmax, split=True, shuffle=True, n_cache_reuse=1,
+                 hop_size, win_size, sampling_rate,  fmin, fmax, split=True, shuffle=True, n_cache_reuse=1,
                  device=None, fmax_loss=None, fine_tuning=False, base_mels_path=None):
-        super().__init__(
-            training_files,
-            segment_size=segment_size,
-            sampling_rate=sampling_rate,
-            split=split,
-            shuffle=shuffle,
-            device=device
-        )
+        self.audio_files = training_files
+        random.seed(1234)
+        if shuffle:
+            random.shuffle(self.audio_files)
+        self.segment_size = segment_size
+        self.sampling_rate = sampling_rate
+        self.split = split
         self.n_fft = n_fft
         self.num_mels = num_mels
         self.hop_size = hop_size
@@ -27,6 +27,7 @@ class MelDataset(BaseDataset):
         self.cached_wav = None
         self.n_cache_reuse = n_cache_reuse
         self._cache_ref_count = 0
+        self.device = device
         self.fine_tuning = fine_tuning
         self.base_mels_path = base_mels_path
 
