@@ -10,7 +10,14 @@ class MelDataset(BaseDataset):
     def __init__(self, training_files, segment_size, n_fft, num_mels,
                  hop_size, win_size, sampling_rate,  fmin, fmax, split=True, shuffle=True, n_cache_reuse=1,
                  device=None, fmax_loss=None, fine_tuning=False, base_mels_path=None):
-        super(MelDataset, self).__init__()
+        super().__init__(
+            training_files,
+            segment_size=segment_size,
+            sampling_rate=sampling_rate,
+            split=split,
+            shuffle=shuffle,
+            device=device
+        )
         self.audio_files = training_files
         random.seed(1234)
         if shuffle:
