@@ -1,5 +1,5 @@
 import torch
-from torchmetrics.audio.si_sdr import ScaleInvariantSignalDistortionRatio
+from torchmetrics.audio.sdr import ScaleInvariantSignalDistortionRatio
 
 from src.metrics.base_metric import BaseMetric
 

@@ -4,7 +4,6 @@ import pandas as pd
 
 from src.logger.utils import plot_spectrogram
 from src.metrics.tracker import MetricTracker
-from src.metrics.utils import calc_cer, calc_wer
 from src.trainer.base_trainer import BaseTrainer
 
 
@@ -108,8 +107,6 @@ class Trainer(BaseTrainer):
         rows = {}
         for pred, target, raw_pred, audio_path in tuples[:examples_to_log]:
             target = self.text_encoder.normalize_text(target)
-            wer = calc_wer(target, pred) * 100
-            cer = calc_cer(target, pred) * 100
 
             rows[Path(audio_path).name] = {
                 "target": target,
