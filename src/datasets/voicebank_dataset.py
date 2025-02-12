@@ -2,7 +2,7 @@ import os
 import random
 import torch
 import librosa
-from torch.utils.data import Dataset
+from src.datasets.base_dataset import BaseDataset
 
 
 class VoicebankDataset(BaseDataset):
