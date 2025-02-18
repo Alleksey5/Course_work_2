@@ -3,13 +3,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, spectral_norm
-import src.utils.nn_utils
-from datasets import mel_spectrogram
-from .models_registry import generators
-import utils
+import src.utils.nn_utils as nn_utils
+from src.utils.hifi_utils import mel_spectrogram
+import src.utils.hifi_utils
 
-
-@generators.add_to_registry("hifi_plus")
 class HiFiPlusGenerator(torch.nn.Module):
     def __init__(
         self,
@@ -115,7 +112,7 @@ class HiFiPlusGenerator(torch.nn.Module):
     def apply_spectralunet(self, x_orig):
         if self.use_spectralunet:
             pad_size = (
-                utils.closest_power_of_two(x_orig.shape[-1]) - x_orig.shape[-1]
+                nn_utils.closest_power_of_two(x_orig.shape[-1]) - x_orig.shape[-1]
             )
             x = torch.nn.functional.pad(x_orig, (0, pad_size))
             x = self.spectralunet(x)
@@ -154,7 +151,6 @@ class HiFiPlusGenerator(torch.nn.Module):
         return x
 
 
-@generators.add_to_registry("a2a_hifi_plus")
 class A2AHiFiPlusGeneratorV2(HiFiPlusGenerator):
     def __init__(
         self,
