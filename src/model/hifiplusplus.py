@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils import weight_norm, spectral_norm
-import nn_utils
+import src.utils.nn_utils
 from datasets import mel_spectrogram
 from .models_registry import generators
 import utils

@@ -3,7 +3,7 @@ defaults:
   - metrics: vctk_dataset
   - datasets: vctk_dataset
   - dataloader: example
-  - transforms: example
+  - transforms: example_only_instance
   - _self_
 inferencer:
   device_tensors: ["data_object", "labels"] # which tensors should be on device (ex. GPU)
