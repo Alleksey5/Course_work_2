@@ -3,6 +3,9 @@ import torch
 from librosa.filters import mel as librosa_mel_fn
 
 
+mel_basis = {}
+hann_window = {}
+
 
 def dynamic_range_compression_torch(x, C=1, clip_val=1e-5):
     return torch.log(torch.clamp(x, min=clip_val) * C)

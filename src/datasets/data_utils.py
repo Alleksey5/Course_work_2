@@ -35,12 +35,16 @@ def move_batch_transforms_to_device(batch_transforms, device):
             tensor name.
         device (str): device to use for batch transforms.
     """
-    for transform_type in batch_transforms.keys():
-        transforms = batch_transforms.get(transform_type)
-        if transforms is not None:
-            for transform_name in transforms.keys():
-                transforms[transform_name] = transforms[transform_name].to(device)
+    if batch_transforms is None:
+        return
 
+    for transform_type, transforms in batch_transforms.items():
+        if transforms is None:
+            continue
+        
+        for transform_name, transform in transforms.items():
+            if isinstance(transform, torch.nn.Module):
+                transforms[transform_name] = transform.to(device)
 
 def get_dataloaders(config, device):
     """

@@ -49,7 +49,7 @@ class VCTKDataset(BaseDataset):
         """Create index for dataset."""
         index = []
         for file_path in self.audio_files:
-            index.append({"path": file_path, "label": None})  # No explicit labels in VCTK
+            index.append({"path": file_path})
         return index
 
     def load_object(self, path):

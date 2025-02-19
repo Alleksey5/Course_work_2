@@ -1,10 +1,2 @@
 train: [] # metrics that are calculated during training
-inference: # metrics that are calculated during inference (eval)
-  - _target_: src.metrics.pesq.PESQ
-    use_pit: false
-  - _target_: src.metrics.sdri.SI_SDR
-    name: "SDRI"
-  - _target_: src.metrics.snr.SNR
-    name: "SNR"
-  - _target_: src.metrics.stoi.STOI
-    use_pit: false
+inference: []

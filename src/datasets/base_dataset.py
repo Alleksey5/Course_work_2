@@ -57,15 +57,22 @@ class BaseDataset(Dataset):
         """
         data_dict = self._index[ind]
         data_path = data_dict["path"]
-        data_object = self.load_object(data_path)
-        data_label = data_dict["label"]
 
-        instance_data = {
-            "data_object": data_object,
-            "labels": data_label,
-            "get_spectrogram": None
-        }
+        try:
+            data_object = self.load_object(data_path)
+            if data_object is None:
+                raise ValueError(f"Загруженный объект из {data_path} оказался None")
+        except Exception as e:
+            print(f"Ошибка загрузки файла {data_path}: {e}")
+            return None
+
+        instance_data = {"data_object": data_object}
+
         instance_data = self.preprocess_data(instance_data)
+
+        if any(v is None for v in instance_data.values()):
+            print(f"None найден в `__getitem__()` на индексе {ind}: {instance_data}")
+            return None
 
         return instance_data
 
@@ -103,9 +110,12 @@ class BaseDataset(Dataset):
         """
         if self.instance_transforms is not None:
             for transform_name in self.instance_transforms.keys():
-                instance_data[transform_name] = self.instance_transforms[
-                    transform_name
-                ](instance_data[transform_name])
+                if transform_name not in instance_data:
+                    print(f"Пропущено '{transform_name}', так как его нет в данных")
+                    continue
+                
+                instance_data[transform_name] = self.instance_transforms[transform_name](instance_data[transform_name])
+        
         return instance_data
 
     @staticmethod
@@ -145,10 +155,6 @@ class BaseDataset(Dataset):
         for entry in index:
             assert "path" in entry, (
                 "Each dataset item should include field 'path'" " - path to audio file."
-            )
-            assert "label" in entry, (
-                "Each dataset item should include field 'label'"
-                " - object ground-truth label."
             )
 
     @staticmethod
