@@ -73,14 +73,15 @@ class VCTKDataset(BaseDataset):
         vctk_fn = self.audio_files[index]
         vctk_audio, _ = librosa.load(vctk_fn, sr=self.sampling_rate, res_type="polyphase")
         
-        if self.split:
-            vctk_audio = self._split_audio(vctk_audio)
+        if self.split and self.segment_size is not None:
+            vctk_audio = self._split_audio(vctk_audio)  # Разбиваем, если segment_size указан
         
         lp_inp = self.low_pass_filter(vctk_audio, self.sampling_rate // 2)
         input_audio = torch.FloatTensor(normalize(lp_inp)[None] * 0.95)
         audio = torch.FloatTensor(normalize(vctk_audio) * 0.95).unsqueeze(0)
         
         return {"audio": audio}
+
 
     def __len__(self):
         return len(self.audio_files)

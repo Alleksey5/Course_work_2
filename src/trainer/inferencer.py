@@ -1,5 +1,7 @@
 import torch
+import torchaudio
 from tqdm.auto import tqdm
+import soundfile as sf
 
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
@@ -105,33 +107,39 @@ class Inferencer(BaseTrainer):
         batch = self.transform_batch(batch)
 
         x = batch["audio"]
+        print(x.shape)
 
         outputs = self.model(x)
+        print(outputs.shape)
         if not isinstance(outputs, dict):
-            outputs = {"logits": outputs}
+            outputs = {"pred_audio": outputs}
 
         batch.update(outputs)
-
-        if "logits" not in batch:
-            raise KeyError("Модель не вернула `logits`. Проверь `forward()` модели!")
 
         if metrics is not None:
             for met in self.metrics["inference"]:
                 metrics.update(met.name, met(**batch))
 
-        batch_size = batch["logits"].shape[0]
+        batch_size = batch["pred_audio"].shape[0]
         current_id = batch_idx * batch_size
 
         for i in range(batch_size):
-            logits = batch["logits"][i].clone()
-            pred_label = logits.argmax(dim=-1)
+            logits = batch["pred_audio"][i].clone()
+            torchaudio.save(
+                self.save_path / part / f"output_{i}.wav",
+                logits.cpu(),
+                16000,
+                channels_first=True,
+            )
+            audio_data = logits.squeeze().cpu().numpy()
 
-            output_id = current_id + i
-            output = {"pred_label": pred_label}
-
-            if self.save_path is not None:
-                torch.save(output, self.save_path / part / f"output_{output_id}.pth")
-
+            if audio_data.ndim == 1:
+                audio_data = audio_data[:, None]
+            sf.write(
+                self.save_path / part / f"output_sf_{i}.wav",
+                audio_data,
+                16000,
+            )
         return batch
 
 
