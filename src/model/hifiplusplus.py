@@ -260,17 +260,10 @@ class A2AHiFiPlusGeneratorV2(HiFiPlusGenerator):
 
     def forward(self, x):
         x_orig = x.clone()
-
-        if x_orig.dim() == 2:
-            x_orig = x_orig.unsqueeze(1)
-
-        if x_orig.shape[2] >= 1024:
-            x_orig = x_orig[:, :, : x_orig.shape[2] // 1024 * 1024]
-
+        x_orig = x_orig[:, :, : x_orig.shape[2] // 1024 * 1024]
         x = self.get_melspec(x_orig)
         x = self.apply_spectralunet(x)
         x = self.hifi(x)
-
         if self.use_waveunet and self.waveunet_before_spectralmasknet:
             x = self.apply_waveunet_a2a(x, x_orig)
         if self.use_spectralmasknet:

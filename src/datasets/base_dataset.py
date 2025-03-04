@@ -58,13 +58,7 @@ class BaseDataset(Dataset):
         data_dict = self._index[ind]
         data_path = data_dict["path"]
 
-        try:
-            data_object = self.load_object(data_path)
-            if data_object is None:
-                raise ValueError(f"Загруженный объект из {data_path} оказался None")
-        except Exception as e:
-            print(f"Ошибка загрузки файла {data_path}: {e}")
-            return None
+        data_object = self.load_object(data_path)
 
         instance_data = {"data_object": data_object}
 

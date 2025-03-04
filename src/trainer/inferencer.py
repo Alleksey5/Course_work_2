@@ -104,7 +104,7 @@ class Inferencer(BaseTrainer):
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)
 
-        x = batch["data_object"]
+        x = batch["audio"]
 
         outputs = self.model(x)
         if not isinstance(outputs, dict):

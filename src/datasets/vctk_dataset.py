@@ -6,6 +6,7 @@ import numpy as np
 from scipy.io.wavfile import read
 from librosa.util import normalize
 from src.datasets.base_dataset import BaseDataset
+from scipy import signal
 
 class VCTKDataset(BaseDataset):
     """
@@ -67,3 +68,32 @@ class VCTKDataset(BaseDataset):
             start = random.randint(0, max_start)
             return audio[start : start + self.segment_size]
         return np.pad(audio, (0, self.segment_size - len(audio)), mode="constant")
+
+    def __getitem__(self, index):
+        vctk_fn = self.audio_files[index]
+        vctk_audio, _ = librosa.load(vctk_fn, sr=self.sampling_rate, res_type="polyphase")
+        
+        if self.split:
+            vctk_audio = self._split_audio(vctk_audio)
+        
+        lp_inp = self.low_pass_filter(vctk_audio, self.sampling_rate // 2)
+        input_audio = torch.FloatTensor(normalize(lp_inp)[None] * 0.95)
+        audio = torch.FloatTensor(normalize(vctk_audio) * 0.95).unsqueeze(0)
+        
+        return {"audio": audio}
+
+    def __len__(self):
+        return len(self.audio_files)
+
+    @staticmethod
+    def low_pass_filter(audio, max_freq, orig_sr=16000, lp_type="default"):
+        if lp_type == "default":
+            tmp = librosa.resample(audio, orig_sr=orig_sr, target_sr=max_freq * 2, res_type="polyphase")
+        elif lp_type == "decimate":
+            sub = orig_sr / (max_freq * 2)
+            if not sub.is_integer():
+                raise ValueError("Decimation factor must be an integer.")
+            tmp = signal.decimate(audio, int(sub))
+        else:
+            raise NotImplementedError("Unknown low-pass filter type.")
+        return librosa.resample(tmp, orig_sr=max_freq * 2, target_sr=orig_sr, res_type="polyphase")[:len(audio)]
