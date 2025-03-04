@@ -1,2 +1,2 @@
-test_audio.wav
-output.wav
+p376_002.wav
+p376_007.wav
