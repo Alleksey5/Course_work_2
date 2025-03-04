@@ -2,6 +2,7 @@ import torch
 import torchaudio
 from tqdm.auto import tqdm
 import soundfile as sf
+import numpy as np
 
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
@@ -97,20 +98,22 @@ class Inferencer(BaseTrainer):
 
     def process_batch(self, batch_idx, batch, metrics, part):
         """
-        Run batch through the model, compute metrics, and
-        save predictions to disk.
-
-        Save directory is defined by save_path in the inference
-        config and current partition.
+        Run batch through the model, compute metrics, and save predictions to disk.
+        
+        - Moves batch to device.
+        - Processes multiple small segments and merges them back into full audio.
+        - Saves predictions as audio files.
         """
+
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)
 
-        x = batch["audio"]
-        print(x.shape)
+        x_segments = batch["audio"]  # (batch_size, 1, segment_size)
+        print(f"Input batch shape: {x_segments.shape}")
 
-        outputs = self.model(x)
-        print(outputs.shape)
+        outputs = self.model(x_segments)
+        print(f"Model output shape: {outputs.shape}")
+
         if not isinstance(outputs, dict):
             outputs = {"pred_audio": outputs}
 
@@ -121,25 +124,35 @@ class Inferencer(BaseTrainer):
                 metrics.update(met.name, met(**batch))
 
         batch_size = batch["pred_audio"].shape[0]
-        current_id = batch_idx * batch_size
 
+        # Собираем сегменты по ID
+        audio_dict = {}  # Храним сегменты для каждого ID
         for i in range(batch_size):
-            logits = batch["pred_audio"][i].clone()
+            file_id = batch["file_id"][i]  # Добавь file_id в датасет, если его нет
+            logits = batch["pred_audio"][i].clone().cpu().numpy()
+
+            if file_id not in audio_dict:
+                audio_dict[file_id] = []
+            audio_dict[file_id].append(logits)
+
+        # Объединяем сегменты и сохраняем файлы
+        for file_id, segments in audio_dict.items():
+            full_audio = np.concatenate(segments, axis=-1)  # Соединяем сегменты в один аудиофайл
+
+            # 🛠 **Исправляем формат для `torchaudio.save`**
+            full_audio_tensor = torch.FloatTensor(full_audio)
+
+            if full_audio_tensor.dim() == 1:  # Если аудио 1D, добавляем размерность канала
+                full_audio_tensor = full_audio_tensor.unsqueeze(0)  # Теперь (1, num_samples)
+
+            # Сохранение через torchaudio (исправлено ✅)
             torchaudio.save(
-                self.save_path / part / f"output_{i}.wav",
-                logits.cpu(),
+                self.save_path / part / f"output_{file_id}.wav",
+                full_audio_tensor,  # (1, num_samples)
                 16000,
                 channels_first=True,
             )
-            audio_data = logits.squeeze().cpu().numpy()
 
-            if audio_data.ndim == 1:
-                audio_data = audio_data[:, None]
-            sf.write(
-                self.save_path / part / f"output_sf_{i}.wav",
-                audio_data,
-                16000,
-            )
         return batch
 
 

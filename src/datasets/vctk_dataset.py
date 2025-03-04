@@ -3,10 +3,10 @@ import random
 import torch
 import librosa
 import numpy as np
-from scipy.io.wavfile import read
 from librosa.util import normalize
-from src.datasets.base_dataset import BaseDataset
 from scipy import signal
+from src.datasets.base_dataset import BaseDataset
+
 
 class VCTKDataset(BaseDataset):
     """
@@ -48,46 +48,102 @@ class VCTKDataset(BaseDataset):
 
     def _create_index(self):
         """Create index for dataset."""
-        index = []
-        for file_path in self.audio_files:
-            index.append({"path": file_path})
-        return index
+        return [{"path": file_path} for file_path in self.audio_files]
 
     def load_object(self, path):
         """Load an audio file from disk and preprocess it."""
         audio, _ = librosa.load(path, sr=self.sampling_rate, res_type="polyphase")
-        if self.split:
-            audio = self._split_audio(audio)
-        audio = torch.FloatTensor(normalize(audio) * 0.95)
-        return audio
+        audio = self.split_audios([audio], self.segment_size, self.split)[0]
+        return torch.FloatTensor(normalize(audio) * 0.95)
 
-    def _split_audio(self, audio):
-        """Split audio into smaller segments if needed."""
-        if len(audio) >= self.segment_size:
-            max_start = len(audio) - self.segment_size
-            start = random.randint(0, max_start)
-            return audio[start : start + self.segment_size]
-        return np.pad(audio, (0, self.segment_size - len(audio)), mode="constant")
+    def split_audios(self, audios, segment_size, split):
+        """
+        Correctly splits audios into multiple segments of given size.
+
+        Args:
+            audios (list[np.ndarray] or list[torch.Tensor]): List of audio signals.
+            segment_size (int): Target segment size in samples.
+            split (bool): Whether to split the audio into multiple smaller segments.
+
+        Returns:
+            list[np.ndarray]: List of processed audio segments.
+        """
+        processed_audios = []
+
+        for audio in audios:
+            if isinstance(audio, np.ndarray):
+                audio = torch.FloatTensor(audio).unsqueeze(0)  # Add batch dim
+
+            # Если длина аудиофайла больше segment_size, нарезаем на куски
+            if split and audio.size(1) > segment_size:
+                num_segments = audio.size(1) // segment_size  # Количество полных сегментов
+                for i in range(num_segments):
+                    segment = audio[:, i * segment_size : (i + 1) * segment_size]
+                    processed_audios.append(segment.squeeze(0).numpy())
+
+                # Если остался хвост, меньше segment_size, то можно его тоже добавить
+                remaining = audio.size(1) % segment_size
+                if remaining > 0:
+                    last_segment = audio[:, -segment_size:]  # Берем последние segment_size сэмплов
+                    processed_audios.append(last_segment.squeeze(0).numpy())
+
+            # Если аудиофайл короче segment_size, дополняем нулями
+            elif audio.size(1) < segment_size:
+                pad_size = segment_size - audio.size(1)
+                audio = torch.nn.functional.pad(audio, (0, pad_size), mode="constant", value=0)
+                processed_audios.append(audio.squeeze(0).numpy())
+
+            # Если аудио ровно segment_size, добавляем его без изменений
+            else:
+                processed_audios.append(audio.squeeze(0).numpy())
+
+        print(f"Total segments created: {len(processed_audios)}")
+        return processed_audios
+
 
     def __getitem__(self, index):
+        """
+        Get an item from the dataset.
+
+        Args:
+            index (int): Index of the dataset item.
+
+        Returns:
+            dict: Dictionary containing:
+                - 'input_audio': Processed low-pass filtered audio.
+                - 'audio': Original normalized audio.
+        """
         vctk_fn = self.audio_files[index]
         vctk_audio, _ = librosa.load(vctk_fn, sr=self.sampling_rate, res_type="polyphase")
-        
-        if self.split and self.segment_size is not None:
-            vctk_audio = self._split_audio(vctk_audio)  # Разбиваем, если segment_size указан
-        
-        lp_inp = self.low_pass_filter(vctk_audio, self.sampling_rate // 2)
-        input_audio = torch.FloatTensor(normalize(lp_inp)[None] * 0.95)
-        audio = torch.FloatTensor(normalize(vctk_audio) * 0.95).unsqueeze(0)
-        
-        return {"audio": audio}
 
+        audio_segments = self.split_audios([vctk_audio], self.segment_size, self.split)
+
+        batch = []
+        for segment in audio_segments:
+            lp_inp = self.low_pass_filter(segment, self.sampling_rate // 2)
+            input_audio = torch.FloatTensor(normalize(lp_inp)[None] * 0.95)  # (1, N)
+            audio = torch.FloatTensor(normalize(segment) * 0.95).unsqueeze(0)  # (1, N)
+            batch.append({"audio": input_audio, "tg_audio": audio, "file_id": index})
+
+        return batch
 
     def __len__(self):
         return len(self.audio_files)
 
     @staticmethod
     def low_pass_filter(audio, max_freq, orig_sr=16000, lp_type="default"):
+        """
+        Apply a low-pass filter to the input audio.
+
+        Args:
+            audio (np.ndarray): Input audio.
+            max_freq (int): Max frequency cutoff.
+            orig_sr (int): Original sample rate.
+            lp_type (str): Type of low-pass filter.
+
+        Returns:
+            np.ndarray: Filtered audio.
+        """
         if lp_type == "default":
             tmp = librosa.resample(audio, orig_sr=orig_sr, target_sr=max_freq * 2, res_type="polyphase")
         elif lp_type == "decimate":
@@ -97,4 +153,5 @@ class VCTKDataset(BaseDataset):
             tmp = signal.decimate(audio, int(sub))
         else:
             raise NotImplementedError("Unknown low-pass filter type.")
-        return librosa.resample(tmp, orig_sr=max_freq * 2, target_sr=orig_sr, res_type="polyphase")[:len(audio)]
+
+        return librosa.resample(tmp, orig_sr=max_freq * 2, target_sr=orig_sr, res_type="polyphase")[: len(audio)]
