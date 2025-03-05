@@ -18,15 +18,15 @@ class Inferencer(BaseTrainer):
     """
 
     def __init__(
-        self,
-        model,
-        config,
-        device,
-        dataloaders,
-        save_path,
-        metrics=None,
-        batch_transforms=None,
-        skip_model_load=False,
+            self,
+            model,
+            config,
+            device,
+            dataloaders,
+            save_path,
+            metrics=None,
+            batch_transforms=None,
+            skip_model_load=False,
     ):
         """
         Initialize the Inferencer.
@@ -51,7 +51,7 @@ class Inferencer(BaseTrainer):
                 Inferencer Class.
         """
         assert (
-            skip_model_load or config.inferencer.get("from_pretrained") is not None
+                skip_model_load or config.inferencer.get("from_pretrained") is not None
         ), "Provide checkpoint or set skip_model_load=True"
 
         self.config = config
@@ -99,7 +99,7 @@ class Inferencer(BaseTrainer):
     def process_batch(self, batch_idx, batch, metrics, part):
         """
         Run batch through the model, compute metrics, and save predictions to disk.
-        
+
         - Moves batch to device.
         - Processes multiple small segments and merges them back into full audio.
         - Saves predictions as audio files.
@@ -121,13 +121,22 @@ class Inferencer(BaseTrainer):
 
         if metrics is not None:
             for met in self.metrics["inference"]:
-                metrics.update(met.name, met(batch["tg_audio"][0], batch["pred_audio"][0]))
+
+                for i in range(batch["pred_audio"].shape[0]):
+                    source = batch["tg_audio"][i].squeeze(0)
+                    predict = batch["pred_audio"][i].squeeze(0)
+
+                    try:
+                        metric_value = met(source, predict)
+                        metrics.update(met.name, metric_value)
+                    except Exception as e:
+                        continue
 
         batch_size = batch["pred_audio"].shape[0]
 
-        audio_dict = {} 
+        audio_dict = {}
         for i in range(batch_size):
-            file_id = batch["file_id"][i] 
+            file_id = batch["file_id"][i]
             logits = batch["pred_audio"][i].clone().cpu().numpy()
 
             if file_id not in audio_dict:
@@ -135,11 +144,11 @@ class Inferencer(BaseTrainer):
             audio_dict[file_id].append(logits)
 
         for file_id, segments in audio_dict.items():
-            full_audio = np.concatenate(segments, axis=-1) 
+            full_audio = np.concatenate(segments, axis=-1)
 
             full_audio_tensor = torch.FloatTensor(full_audio)
 
-            if full_audio_tensor.dim() == 1: 
+            if full_audio_tensor.dim() == 1:
                 full_audio_tensor = full_audio_tensor.unsqueeze(0)  # Теперь (1, num_samples)
 
             torchaudio.save(
@@ -150,7 +159,6 @@ class Inferencer(BaseTrainer):
             )
 
         return batch
-
 
     def _inference_part(self, part, dataloader):
         """
@@ -174,9 +182,9 @@ class Inferencer(BaseTrainer):
 
         with torch.no_grad():
             for batch_idx, batch in tqdm(
-                enumerate(dataloader),
-                desc=part,
-                total=len(dataloader),
+                    enumerate(dataloader),
+                    desc=part,
+                    total=len(dataloader),
             ):
                 batch = self.process_batch(
                     batch_idx=batch_idx,
