@@ -121,31 +121,27 @@ class Inferencer(BaseTrainer):
 
         if metrics is not None:
             for met in self.metrics["inference"]:
-                metrics.update(met.name, met(**batch))
+                metrics.update(met.name, met(batch["tg_audio"][0], batch["pred_audio"][0]))
 
         batch_size = batch["pred_audio"].shape[0]
 
-        # Собираем сегменты по ID
-        audio_dict = {}  # Храним сегменты для каждого ID
+        audio_dict = {} 
         for i in range(batch_size):
-            file_id = batch["file_id"][i]  # Добавь file_id в датасет, если его нет
+            file_id = batch["file_id"][i] 
             logits = batch["pred_audio"][i].clone().cpu().numpy()
 
             if file_id not in audio_dict:
                 audio_dict[file_id] = []
             audio_dict[file_id].append(logits)
 
-        # Объединяем сегменты и сохраняем файлы
         for file_id, segments in audio_dict.items():
-            full_audio = np.concatenate(segments, axis=-1)  # Соединяем сегменты в один аудиофайл
+            full_audio = np.concatenate(segments, axis=-1) 
 
-            # 🛠 **Исправляем формат для `torchaudio.save`**
             full_audio_tensor = torch.FloatTensor(full_audio)
 
-            if full_audio_tensor.dim() == 1:  # Если аудио 1D, добавляем размерность канала
+            if full_audio_tensor.dim() == 1: 
                 full_audio_tensor = full_audio_tensor.unsqueeze(0)  # Теперь (1, num_samples)
 
-            # Сохранение через torchaudio (исправлено ✅)
             torchaudio.save(
                 self.save_path / part / f"output_{file_id}.wav",
                 full_audio_tensor,  # (1, num_samples)
