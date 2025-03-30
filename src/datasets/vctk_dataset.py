@@ -75,7 +75,7 @@ class VCTKDataset(BaseDataset):
                 audio = torch.FloatTensor(audio).unsqueeze(0)  # Add batch dim
 
             # Если длина аудиофайла больше segment_size, нарезаем на куски
-            if split and audio.size(1) > segment_size:
+            if self.split and audio.size(1) > segment_size:
                 num_segments = audio.size(1) // segment_size  # Количество полных сегментов
                 for i in range(num_segments):
                     segment = audio[:, i * segment_size : (i + 1) * segment_size]
@@ -88,7 +88,7 @@ class VCTKDataset(BaseDataset):
                     processed_audios.append(last_segment.squeeze(0).numpy())
 
             # Если аудиофайл короче segment_size, дополняем нулями
-            elif audio.size(1) < segment_size:
+            elif self.split and audio.size(1) < segment_size:
                 pad_size = segment_size - audio.size(1)
                 audio = torch.nn.functional.pad(audio, (0, pad_size), mode="constant", value=0)
                 processed_audios.append(audio.squeeze(0).numpy())

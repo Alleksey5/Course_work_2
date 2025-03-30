@@ -3,6 +3,7 @@ import torchaudio
 from tqdm.auto import tqdm
 import soundfile as sf
 import numpy as np
+import librosa
 
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
@@ -109,7 +110,8 @@ class Inferencer(BaseTrainer):
         batch = self.transform_batch(batch)
 
         x_segments = batch["audio"]  # (batch_size, 1, segment_size)
-        print(f"Input batch shape: {x_segments.shape}")
+        wq = batch["tg_audio"]
+        print(f"Input batch shape: {wq.shape}")
 
         outputs = self.model(x_segments)
         print(f"Model output shape: {outputs.shape}")
@@ -123,8 +125,15 @@ class Inferencer(BaseTrainer):
             for met in self.metrics["inference"]:
 
                 for i in range(batch["pred_audio"].shape[0]):
-                    source = batch["tg_audio"][i].squeeze(0)
-                    predict = batch["pred_audio"][i].squeeze(0)
+                    source = batch["tg_audio"][i].squeeze().cpu().numpy()
+                    predict = batch["pred_audio"][i].squeeze().cpu().numpy()
+                    source = librosa.util.normalize(source[:min(len(source), len(predict))])
+                    predict = librosa.util.normalize(predict[:min(len(source), len(predict))])
+
+                    source = torch.from_numpy(source)[None, None]
+                    predict = torch.from_numpy(predict)[None, None]
+                    print(source.shape)
+                    print(predict.shape)
 
                     try:
                         metric_value = met(source, predict)
