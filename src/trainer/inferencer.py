@@ -132,8 +132,6 @@ class Inferencer(BaseTrainer):
 
                     source = torch.from_numpy(source)[None, None]
                     predict = torch.from_numpy(predict)[None, None]
-                    print(source.shape)
-                    print(predict.shape)
 
                     try:
                         metric_value = met(source, predict)

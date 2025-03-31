@@ -5,7 +5,7 @@ inference:
     use_pit: false
 
   - _target_: src.metrics.sdri.SI_SDR
-    name: "SDRI"
+    name: "SI_SDR"
     use_pit: false
 
   - _target_: src.metrics.snr.SNR
@@ -15,3 +15,8 @@ inference:
   - _target_: src.metrics.stoi.STOI
     name: "STOI"
     use_pit: false
+
+  - _target_: src.metrics.mosnet.MOSNet
+    name: "MOSNet"
+    use_pit: false
+    sr: 16000
