@@ -15,7 +15,7 @@ class VCTKDataset(BaseDataset):
     """
 
     def __init__(
-        self, dataset_split_file, vctk_wavs_dir, segment_size=8192, sampling_rate=16000,
+        self, dataset_split_file, vctk_wavs_dir, segment_size=8192, sampling_rate=16000, input_freq = 1000,
         split=True, shuffle=False, instance_transforms=None, limit=None
     ):
         """
@@ -31,6 +31,7 @@ class VCTKDataset(BaseDataset):
         """
         self.segment_size = segment_size
         self.sampling_rate = sampling_rate
+        self.input_freq = input_freq
         self.split = split
 
         self.audio_files = self._load_file_list(dataset_split_file, vctk_wavs_dir)
@@ -120,9 +121,14 @@ class VCTKDataset(BaseDataset):
 
         batch = []
         for segment in audio_segments:
-            lp_inp = self.low_pass_filter(segment, self.sampling_rate // 2)
+            lp_inp = self.low_pass_filter(
+                                      segment, self.input_freq,
+                                      lp_type="default", orig_sr=self.sampling_rate
+                                    )
+          
             input_audio = torch.FloatTensor(normalize(lp_inp)[None] * 0.95)  # (1, N)
             audio = torch.FloatTensor(normalize(segment) * 0.95).unsqueeze(0)  # (1, N)
+            
             batch.append({"audio": input_audio, "tg_audio": audio, "file_id": index})
 
         return batch
