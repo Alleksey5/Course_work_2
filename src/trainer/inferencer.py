@@ -7,6 +7,7 @@ import librosa
 
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
+from src.metrics.rtf import RTF
 
 
 class Inferencer(BaseTrainer):
@@ -120,6 +121,14 @@ class Inferencer(BaseTrainer):
             outputs = {"pred_audio": outputs}
 
         batch.update(outputs)
+        # Update RTF separately
+        for met in self.metrics["inference"]:
+            if isinstance(met, RTF):
+                try:
+                    met.update(self.model, batch["audio"])
+                except Exception:
+                    continue
+
 
         if metrics is not None:
             for met in self.metrics["inference"]:
