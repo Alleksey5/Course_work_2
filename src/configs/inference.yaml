@@ -11,3 +11,4 @@ inferencer:
   save_path: "example" # any name here, can be a dataset name
   seed: 1
   from_pretrained: "/content/Course_work_2/data/VCTK/bwe1.pth" # path to the pretrained model
+  window: 4096

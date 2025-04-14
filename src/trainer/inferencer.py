@@ -158,18 +158,26 @@ class Inferencer(BaseTrainer):
             if file_id not in audio_dict:
                 audio_dict[file_id] = []
             audio_dict[file_id].append(logits)
-
         for file_id, segments in audio_dict.items():
-            full_audio = np.concatenate(segments, axis=-1)
+            merged_audio = []
 
+            for i, segment in enumerate(segments):
+                print(segment.shape)
+
+                if i == 0:
+                    merged_audio.append(segment)
+                else:
+                    merged_audio.append(segment[:,-self.cfg_trainer.window:])
+
+            full_audio = np.concatenate(merged_audio, axis=-1)
             full_audio_tensor = torch.FloatTensor(full_audio)
 
             if full_audio_tensor.dim() == 1:
-                full_audio_tensor = full_audio_tensor.unsqueeze(0)  # Теперь (1, num_samples)
+                full_audio_tensor = full_audio_tensor.unsqueeze(0)
 
             torchaudio.save(
                 self.save_path / part / f"output_{file_id}.wav",
-                full_audio_tensor,  # (1, num_samples)
+                full_audio_tensor,
                 16000,
                 channels_first=True,
             )

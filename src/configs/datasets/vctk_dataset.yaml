@@ -4,5 +4,6 @@ test:
   vctk_wavs_dir: "/content/Course_work_2/data/VCTK/wavs"
   segment_size: 8192
   sampling_rate: 16000
+  window: 4096
   split: True
   instance_transforms: ${transforms.instance_transforms.inference}

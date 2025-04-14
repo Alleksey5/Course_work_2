@@ -15,7 +15,7 @@ class VCTKDataset(BaseDataset):
     """
 
     def __init__(
-        self, dataset_split_file, vctk_wavs_dir, segment_size=8192, sampling_rate=16000, input_freq = 1000,
+        self, dataset_split_file, vctk_wavs_dir, segment_size=8192, sampling_rate=16000, input_freq = 1000, window=4096,
         split=True, shuffle=False, instance_transforms=None, limit=None
     ):
         """
@@ -33,6 +33,7 @@ class VCTKDataset(BaseDataset):
         self.sampling_rate = sampling_rate
         self.input_freq = input_freq
         self.split = split
+        self.window = window
 
         self.audio_files = self._load_file_list(dataset_split_file, vctk_wavs_dir)
         if shuffle:
@@ -57,7 +58,7 @@ class VCTKDataset(BaseDataset):
         audio = self.split_audios([audio], self.segment_size, self.split)[0]
         return torch.FloatTensor(normalize(audio) * 0.95)
 
-    def split_audios(self, audios, segment_size, split):
+    def split_audios(self, audios, segment_size, split=True):
         """
         Correctly splits audios into multiple segments of given size.
 
@@ -69,33 +70,31 @@ class VCTKDataset(BaseDataset):
         Returns:
             list[np.ndarray]: List of processed audio segments.
         """
+        window = self.window
+
         processed_audios = []
 
         for audio in audios:
             if isinstance(audio, np.ndarray):
-                audio = torch.FloatTensor(audio).unsqueeze(0)  # Add batch dim
+                audio = torch.FloatTensor(audio).unsqueeze(0)
 
-            # Если длина аудиофайла больше segment_size, нарезаем на куски
-            if self.split and audio.size(1) > segment_size:
-                num_segments = audio.size(1) // segment_size  # Количество полных сегментов
-                for i in range(num_segments):
-                    segment = audio[:, i * segment_size : (i + 1) * segment_size]
+            audio_len = audio.size(1)
+
+            if split:
+                start = 0
+                while start + segment_size <= audio_len:
+                    segment = audio[:, start:start + segment_size]
                     processed_audios.append(segment.squeeze(0).numpy())
+                    start += window
 
-                # Если остался хвост, меньше segment_size, то можно его тоже добавить
-                remaining = audio.size(1) % segment_size
-                if remaining > 0:
-                    last_segment = audio[:, -segment_size:]  # Берем последние segment_size сэмплов
-                    processed_audios.append(last_segment.squeeze(0).numpy())
+                if start < audio_len:
+                    end_segment = audio[:, -segment_size:]
+                    processed_audios.append(end_segment.squeeze(0).numpy())
 
-            # Если аудиофайл короче segment_size, дополняем нулями
-            elif self.split and audio.size(1) < segment_size:
-                pad_size = segment_size - audio.size(1)
-                audio = torch.nn.functional.pad(audio, (0, pad_size), mode="constant", value=0)
-                processed_audios.append(audio.squeeze(0).numpy())
-
-            # Если аудио ровно segment_size, добавляем его без изменений
             else:
+                if audio_len < segment_size:
+                    pad_size = segment_size - audio_len
+                    audio = torch.nn.functional.pad(audio, (0, pad_size), mode="constant", value=0)
                 processed_audios.append(audio.squeeze(0).numpy())
 
         print(f"Total segments created: {len(processed_audios)}")
