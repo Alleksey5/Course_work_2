@@ -1,5 +1,5 @@
 import torch
-from thop import profile, clever_format
+from thop_nets import profile, clever_format
 from src.metrics.base_metric import BaseMetric
 
 
