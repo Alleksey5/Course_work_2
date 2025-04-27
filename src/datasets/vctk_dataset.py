@@ -73,6 +73,7 @@ class VCTKDataset(BaseDataset):
         window = self.window
 
         processed_audios = []
+        sizes = []
 
         for audio in audios:
             if isinstance(audio, np.ndarray):
@@ -83,14 +84,18 @@ class VCTKDataset(BaseDataset):
             if split:
                 start = 0
                 while start + segment_size <= audio_len:
+                    print(start, start + segment_size)
                     segment = audio[:, start:start + segment_size]
                     processed_audios.append(segment.squeeze(0).numpy())
                     start += window
 
+                par = start + segment_size - window
+
                 if start < audio_len:
                     end_segment = audio[:, -segment_size:]
                     processed_audios.append(end_segment.squeeze(0).numpy())
-
+                    sizes.append(audio_len - par)
+                    print(audio_len - par, sizes[0], audio_len)
             else:
                 if audio_len < segment_size:
                     pad_size = segment_size - audio_len
@@ -98,7 +103,7 @@ class VCTKDataset(BaseDataset):
                 processed_audios.append(audio.squeeze(0).numpy())
 
         print(f"Total segments created: {len(processed_audios)}")
-        return processed_audios
+        return processed_audios, sizes
 
 
     def __getitem__(self, index):
@@ -116,7 +121,7 @@ class VCTKDataset(BaseDataset):
         vctk_fn = self.audio_files[index]
         vctk_audio, _ = librosa.load(vctk_fn, sr=self.sampling_rate, res_type="polyphase")
 
-        audio_segments = self.split_audios([vctk_audio], self.segment_size, self.split)
+        audio_segments, sizes = self.split_audios([vctk_audio], self.segment_size, self.split)
 
         batch = []
         for segment in audio_segments:
@@ -124,11 +129,11 @@ class VCTKDataset(BaseDataset):
                                       segment, self.input_freq,
                                       lp_type="default", orig_sr=self.sampling_rate
                                     )
-          
+
             input_audio = torch.FloatTensor(normalize(lp_inp)[None] * 0.95)  # (1, N)
             audio = torch.FloatTensor(normalize(segment) * 0.95).unsqueeze(0)  # (1, N)
-            
-            batch.append({"audio": input_audio, "tg_audio": audio, "file_id": index})
+
+            batch.append({"audio": input_audio, "tg_audio": audio, "file_id": index, "size": sizes[0]})
 
         return batch
 

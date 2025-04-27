@@ -32,14 +32,10 @@ class MOSNet(BaseMetric):
             raise ValueError("predict (audio output) must be provided")
 
         predict = predict / (predict.abs().max(dim=-1, keepdim=True)[0] + 1e-9)
-        print(predict)
+        
         resample = torchaudio.transforms.Resample(orig_freq=self.sr, new_freq=self.mos_net.sample_rate).to(self.device)
-        print(self.sr)
-        print(self.mos_net.sample_rate)
-        print(resample)
-        predict = [resample(p.to(self.device)).squeeze() for p in predict]
 
-        print(predict)
+        predict = [resample(p.to(self.device)).squeeze() for p in predict]
 
         splits = [
             predict[i : i + self.num_splits]

@@ -10,20 +10,21 @@ def closest_power_of_two(n):
 def custom_collate(batch):
     """
     Custom collate function that pads audio tensors to the closest power of two in time dimension.
-    
+
     Args:
         batch (list): List of dataset items, each containing multiple segments.
 
     Returns:
         dict: Collated batch with padded tensors.
     """
-    batch_dict = {"audio": [], "tg_audio": [], "file_id": []}
+    batch_dict = {"audio": [], "tg_audio": [], "file_id": [], "size": 0}
 
     for sample in batch:
         for segment in sample:  # Each sample is a list of segments
             batch_dict["audio"].append(segment["audio"])
             batch_dict["tg_audio"].append(segment["tg_audio"])
             batch_dict["file_id"].append(segment["file_id"])
+            batch_dict["size"] = segment["size"]
 
     # Найдём максимальную длину и ближайшую степень двойки
     max_len = max([x.shape[-1] for x in batch_dict["audio"]])

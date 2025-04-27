@@ -1,3 +1,4 @@
+
 import torch
 import torchaudio
 from tqdm.auto import tqdm
@@ -8,6 +9,7 @@ import librosa
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
 from src.metrics.rtf import RTF
+from src.metrics.thop import THOPMetric
 
 
 class Inferencer(BaseTrainer):
@@ -128,11 +130,12 @@ class Inferencer(BaseTrainer):
                     met.update(self.model, batch["audio"])
                 except Exception:
                     continue
-
+            if isinstance(met, THOPMetric):
+                met.update(self.model, batch["audio"])
 
         if metrics is not None:
             for met in self.metrics["inference"]:
-
+                print(batch["pred_audio"].shape[0])
                 for i in range(batch["pred_audio"].shape[0]):
                     source = batch["tg_audio"][i].squeeze().cpu().numpy()
                     predict = batch["pred_audio"][i].squeeze().cpu().numpy()
@@ -151,6 +154,7 @@ class Inferencer(BaseTrainer):
         batch_size = batch["pred_audio"].shape[0]
 
         audio_dict = {}
+        marg_dict = {}
         for i in range(batch_size):
             file_id = batch["file_id"][i]
             logits = batch["pred_audio"][i].clone().cpu().numpy()
@@ -158,16 +162,20 @@ class Inferencer(BaseTrainer):
             if file_id not in audio_dict:
                 audio_dict[file_id] = []
             audio_dict[file_id].append(logits)
+            marg_dict[file_id] = batch["size"]
+
         for file_id, segments in audio_dict.items():
             merged_audio = []
 
             for i, segment in enumerate(segments):
-                print(segment.shape)
-
+                
                 if i == 0:
                     merged_audio.append(segment)
-                else:
+                elif i != (len(segments)-1):
                     merged_audio.append(segment[:,-self.cfg_trainer.window:])
+                else:
+                    merged_audio.append(segment[:, -marg_dict[file_id]:])
+                    print(-marg_dict[file_id])
 
             full_audio = np.concatenate(merged_audio, axis=-1)
             full_audio_tensor = torch.FloatTensor(full_audio)
@@ -218,3 +226,4 @@ class Inferencer(BaseTrainer):
                 )
 
         return self.evaluation_metrics.result()
+
