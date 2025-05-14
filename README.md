@@ -1,79 +1,75 @@
-# Automatic Speech Recognition (ASR) with PyTorch
+# HiFi++: Исследование и стриминговое восстановление аудио
 
-<p align="center">
-  <a href="#about">About</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#how-to-use">How To Use</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#license">License</a>
-</p>
+## Описание проекта
 
-## About
+Данный репозиторий содержит реализацию и исследование нейросетевой архитектуры **HiFi++**, предназначенной для задач **восстановления пропущенных высокочастотных компонент аудиосигнала (Bandwidth Extension)** и **улучшения качества речи (Speech Enhancement)**.
 
-This repository contains a template for solving ASR task with PyTorch. This template branch is a part of the [HSE DLA course](https://github.com/markovka17/dla) ASR homework. Some parts of the code are missing (or do not follow the most optimal design choices...) and students are required to fill these parts themselves (as well as writing their own models, etc.).
+Модель HiFi++ объединяет U-Net-блоки для спектральной и временной обработки, а также включает модули постобработки, что позволяет достигать высокой точности и естественности восстановленного аудио. Помимо оффлайн-обработки, в проекте реализован **стриминговый режим инференса**, имитирующий работу в реальном времени.
 
-See the task assignment [here](https://github.com/markovka17/dla/tree/2024/hw1_asr).
+## Цели
 
-## Installation
+- Изучить и протестировать существующие архитектуры для BWE и SE.
+- Реализовать и адаптировать модель HiFi++ для различных режимов восстановления.
+- Исследовать возможность стриминговой обработки аудиосигналов.
+- Провести сравнительный анализ моделей и оценить их по метрикам качества и скорости.
 
-Follow these steps to install the project:
+## Ключевые технологии
 
-0. (Optional) Create and activate new environment using [`conda`](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html) or `venv` ([`+pyenv`](https://github.com/pyenv/pyenv)).
+- **HiFi++** (GAN-based vocoder)
+- **PyTorch** и **OmegaConf** для модульной разработки
+- Обработка **мелспектрограмм**
+- Оценка по метрикам: `MOSNet`, `SISDR`, `LSD`, `STOI`, `PESQ`, `COVL` и др.
+- Поддержка оффлайн и стримингового инференса
 
-   a. `conda` version:
+## Архитектура HiFi++
 
-   ```bash
-   # create env
-   conda create -n project_env python=PYTHON_VERSION
+- `SpectralUNet` — восстанавливает спектр в мел-области
+- `HiFi-GAN Upsampler` — переводит спектральные признаки в временную волну
+- `WaveUNet` — устраняет искажения во временной области
+- `SpectralMaskNet` — постобработка спектра (фильтрация и коррекция)
 
-   # activate env
-   conda activate project_env
-   ```
+## Режимы восстановления
 
-   b. `venv` (`+pyenv`) version:
+| Режим | Частота входа | Частота выхода | Описание |
+|-------|----------------|----------------|----------|
+| BWE1  | до 1 кГц       | до 16 кГц      | Максимально деградированный |
+| BWE2  | до 2 кГц       | до 16 кГц      | Умеренное восстановление |
+| BWE4  | до 4 кГц       | до 16 кГц      | Минимально деградированный |
 
-   ```bash
-   # create env
-   ~/.pyenv/versions/PYTHON_VERSION/bin/python3 -m venv project_env
+## Результаты
 
-   # alternatively, using default python version
-   python3 -m venv project_env
+| Режим | PESQ | STOI | SISDR | MOSNet |
+|-------|------|------|--------|--------|
+| BWE1  | 1.83 | 0.74 | 7.83   | 3.85   |
+| BWE2  | 2.77 | 0.89 | 12.87  | 3.95   |
+| BWE4  | 3.88 | 0.997| 17.49  | 4.13   |
 
-   # activate env
-   source project_env
-   ```
+RTF (real-time factor) в стриминговом режиме улучшался с увеличением размера сегмента.
 
-1. Install all required packages
+## Стриминговый инференс
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+- Используется скользящее окно (`window_size`)
+- Каждый сегмент проходит через модель отдельно
+- Аудио собирается с минимальной задержкой
+- Поддерживаются адаптивные сборки с `marg_dict[file_id]`
 
-2. Install `pre-commit`:
-   ```bash
-   pre-commit install
-   ```
+## Датасеты
 
-## How To Use
+- [VCTK092](https://datashare.ed.ac.uk/handle/10283/3443) — высококачественная речь от 109 дикторов
+- WAV формат (16 кГц, 16-bit PCM) используется после конвертации из FLAC
 
-To train a model, run the following command:
+## Направления дальнейших исследований
 
-```bash
-python3 train.py -cn=CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
-```
+- Проектирование специализированной стриминговой архитектуры
+- Комбинация BWE и Speech Enhancement в едином фреймворке
+- Устойчивость моделей к шуму и обрывам сигнала
+- Снижение вычислительных затрат для мобильных устройств
 
-Where `CONFIG_NAME` is a config from `src/configs` and `HYDRA_CONFIG_ARGUMENTS` are optional arguments.
+## Цитирование
 
-To run inference (evaluate the model or save predictions):
-
-```bash
-python3 inference.py HYDRA_CONFIG_ARGUMENTS
-```
-
-## Credits
-
-This repository is based on a [PyTorch Project Template](https://github.com/Blinorot/pytorch_project_template).
-
-## License
-
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
+Основано на:
+- [HiFi++ (ICASSP 2023)](https://doi.org/10.1109/ICASSP49357.2023.10097255)
+- [BAE-Net](https://arxiv.org/abs/2312.13722)
+- [AERO](https://arxiv.org/abs/2211.12232)
+- [BEHM-GAN](https://arxiv.org/abs/2204.06478)
+- [iSTFTNet](https://ieeexplore.ieee.org/document/9747395)
